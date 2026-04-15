@@ -34,6 +34,7 @@ public class SnakeGame {
         private int score = 0;
         private boolean gameOver = false;
         private Timer timer;
+        private int currentDelay = 150;
 
         public GamePanel() {
             setPreferredSize(new Dimension(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE));
@@ -57,7 +58,7 @@ public class SnakeGame {
                 }
             });
 
-            timer = new Timer(150, e -> {
+            timer = new Timer(currentDelay, e -> {
                 if (!gameOver) {
                     moveSnake();
                     repaint();
@@ -98,6 +99,8 @@ public class SnakeGame {
             initializeGame();
             dx = 1;
             dy = 0;
+            currentDelay = 150;
+            timer.setDelay(currentDelay);
             timer.start();
             repaint();
         }
@@ -136,6 +139,10 @@ public class SnakeGame {
             // Check food eating
             if (nextHead.equals(food)) {
                 score++;
+                if (score % 5 == 0) {
+                    currentDelay = Math.max(50, currentDelay - 10);
+                    timer.setDelay(currentDelay);
+                }
                 spawnFood();
             } else {
                 snake.removeFirst();
