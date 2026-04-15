@@ -1,10 +1,15 @@
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.image.BufferedImage;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.LinkedList;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.SourceDataLine;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -35,11 +40,15 @@ public class SnakeGame {
         private boolean gameOver = false;
         private Timer timer;
         private int currentDelay = 150;
+        private BufferedImage gameOverImage;
+        private long gameOverTime = -1;
+        private static final int GAME_OVER_IMAGE_DURATION = 3000;
 
         public GamePanel() {
             setPreferredSize(new Dimension(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE));
             setFocusable(true);
             initializeGame();
+            gameOverImage = createGameOverImage();
             addKeyListener(new KeyAdapter() {
                 @Override
                 public void keyPressed(KeyEvent e) {
@@ -61,8 +70,8 @@ public class SnakeGame {
             timer = new Timer(currentDelay, e -> {
                 if (!gameOver) {
                     moveSnake();
-                    repaint();
                 }
+                repaint();
             });
             timer.start();
         }
@@ -78,6 +87,7 @@ public class SnakeGame {
             spawnFood();
             score = 0;
             gameOver = false;
+            gameOverTime = -1;
         }
 
         private void initializeSnake() {
@@ -113,6 +123,57 @@ public class SnakeGame {
             dy = newDy;
         }
 
+        private void triggerGameOver() {
+            gameOver = true;
+            gameOverTime = System.currentTimeMillis();
+            playGameOverSound();
+        }
+
+        private BufferedImage createGameOverImage() {
+            int width = 240;
+            int height = 140;
+            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = image.createGraphics();
+            g.setColor(new Color(0, 0, 0, 220));
+            g.fillRoundRect(0, 0, width, height, 30, 30);
+            g.setColor(Color.RED);
+            g.fillOval(30, 20, 80, 80);
+            g.setColor(Color.WHITE);
+            g.fillOval(45, 35, 15, 15);
+            g.fillOval(80, 35, 15, 15);
+            g.setColor(Color.BLACK);
+            g.fillOval(55, 65, 50, 15);
+            g.setColor(Color.WHITE);
+            g.drawString("Game Over", 130, 50);
+            g.drawString("Try Again", 130, 80);
+            g.dispose();
+            return image;
+        }
+
+        private void playGameOverSound() {
+            new Thread(() -> {
+                try {
+                    float sampleRate = 44100f;
+                    int durationMs = 300;
+                    int numSamples = (int) (durationMs * sampleRate / 1000);
+                    byte[] buffer = new byte[numSamples];
+                    double frequency = 440;
+                    for (int i = 0; i < buffer.length; i++) {
+                        double angle = 2.0 * Math.PI * i * frequency / sampleRate;
+                        buffer[i] = (byte) (Math.sin(angle) * 127);
+                    }
+                    AudioFormat format = new AudioFormat(sampleRate, 8, 1, true, false);
+                    try (SourceDataLine line = AudioSystem.getSourceDataLine(format)) {
+                        line.open(format);
+                        line.start();
+                        line.write(buffer, 0, buffer.length);
+                        line.drain();
+                    }
+                } catch (Exception ignored) {
+                }
+            }).start();
+        }
+
         private void moveSnake() {
             Point head = snake.getLast();
             int nextX = head.x + dx;
@@ -120,8 +181,7 @@ public class SnakeGame {
 
             // Check wall collision
             if (nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE) {
-                gameOver = true;
-                timer.stop();
+                triggerGameOver();
                 return;
             }
 
@@ -129,8 +189,7 @@ public class SnakeGame {
 
             // Check self collision
             if (snake.contains(nextHead)) {
-                gameOver = true;
-                timer.stop();
+                triggerGameOver();
                 return;
             }
 
@@ -180,10 +239,18 @@ public class SnakeGame {
             if (gameOver) {
                 g.setColor(Color.BLACK);
                 g.fillRect(0, 0, getWidth(), getHeight());
+
+                long elapsed = System.currentTimeMillis() - gameOverTime;
+                if (gameOverImage != null && elapsed >= 0 && elapsed <= GAME_OVER_IMAGE_DURATION) {
+                    int imageX = (getWidth() - gameOverImage.getWidth()) / 2;
+                    int imageY = (getHeight() - gameOverImage.getHeight()) / 2 - 40;
+                    g.drawImage(gameOverImage, imageX, imageY, null);
+                }
+
                 g.setColor(Color.WHITE);
-                g.drawString("Game Over", getWidth() / 2 - 50, getHeight() / 2 - 10);
-                g.drawString("Final Score: " + score, getWidth() / 2 - 60, getHeight() / 2 + 10);
-                g.drawString("Press R to restart", getWidth() / 2 - 70, getHeight() / 2 + 30);
+                g.drawString("Game Over", getWidth() / 2 - 50, getHeight() / 2 + 50);
+                g.drawString("Final Score: " + score, getWidth() / 2 - 60, getHeight() / 2 + 70);
+                g.drawString("Press R to restart", getWidth() / 2 - 70, getHeight() / 2 + 90);
             }
         }
     }
