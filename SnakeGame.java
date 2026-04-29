@@ -7,6 +7,7 @@ import java.awt.image.BufferedImage;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.LinkedList;
+import java.util.Random;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.SourceDataLine;
@@ -14,6 +15,17 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+
+class Segment {
+    int x, y;
+    Color color;
+
+    Segment(int x, int y, Color color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+    }
+}
 
 public class SnakeGame {
     private static final int CELL_SIZE = 30;
@@ -32,7 +44,7 @@ public class SnakeGame {
     }
 
     private static class GamePanel extends JPanel {
-        private final LinkedList<Point> snake = new LinkedList<>();
+        private final LinkedList<Segment> snake = new LinkedList<>();
         private int dx = 1;
         private int dy = 0;
         private Point food;
@@ -44,11 +56,15 @@ public class SnakeGame {
         private long gameOverTime = -1;
         private static final int GAME_OVER_IMAGE_DURATION = 3000;
 
+        private boolean growSnake = false;
+        private final Random rand = new Random();
+
         public GamePanel() {
             setPreferredSize(new Dimension(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE));
             setFocusable(true);
             initializeGame();
             gameOverImage = createGameOverImage();
+
             addKeyListener(new KeyAdapter() {
                 @Override
                 public void keyPressed(KeyEvent e) {
@@ -88,21 +104,44 @@ public class SnakeGame {
             score = 0;
             gameOver = false;
             gameOverTime = -1;
+            growSnake = false;
+        }
+
+        private Color randomColor() {
+            return new Color(
+                rand.nextInt(206) + 50,
+                rand.nextInt(206) + 50,
+                rand.nextInt(206) + 50
+            );
         }
 
         private void initializeSnake() {
             snake.clear();
-            snake.add(new Point(8, 10));
-            snake.add(new Point(9, 10));
-            snake.add(new Point(10, 10));
+
+            // Start with green snake
+            snake.add(new Segment(8, 10, Color.GREEN));
+            snake.add(new Segment(9, 10, Color.GREEN));
+            snake.add(new Segment(10, 10, Color.GREEN));
         }
 
         private void spawnFood() {
+            boolean valid;
             do {
+                valid = true;
                 int x = (int) (Math.random() * GRID_SIZE);
                 int y = (int) (Math.random() * GRID_SIZE);
-                food = new Point(x, y);
-            } while (snake.contains(food));
+
+                for (Segment s : snake) {
+                    if (s.x == x && s.y == y) {
+                        valid = false;
+                        break;
+                    }
+                }
+
+                if (valid) {
+                    food = new Point(x, y);
+                }
+            } while (!valid);
         }
 
         private void resetGame() {
@@ -169,40 +208,50 @@ public class SnakeGame {
                         line.write(buffer, 0, buffer.length);
                         line.drain();
                     }
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             }).start();
         }
 
         private void moveSnake() {
-            Point head = snake.getLast();
+            Segment head = snake.getLast();
             int nextX = head.x + dx;
             int nextY = head.y + dy;
 
-            // Check wall collision
+            // Wall collision
             if (nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE) {
                 triggerGameOver();
                 return;
             }
 
-            Point nextHead = new Point(nextX, nextY);
-
-            // Check self collision
-            if (snake.contains(nextHead)) {
-                triggerGameOver();
-                return;
+            // Self collision
+            for (Segment s : snake) {
+                if (s.x == nextX && s.y == nextY) {
+                    triggerGameOver();
+                    return;
+                }
             }
 
-            snake.addLast(nextHead);
+            // Add new head
+            snake.addLast(new Segment(nextX, nextY, head.color));
 
-            // Check food eating
-            if (nextHead.equals(food)) {
+            // Food eaten
+            if (nextX == food.x && nextY == food.y) {
                 score++;
+                growSnake = true;
+
                 if (score % 5 == 0) {
                     currentDelay = Math.max(50, currentDelay - 10);
                     timer.setDelay(currentDelay);
                 }
+
                 spawnFood();
+            }
+
+            // Growth logic
+            if (growSnake) {
+                Segment tail = snake.getFirst();
+                snake.addFirst(new Segment(tail.x, tail.y, randomColor()));
+                growSnake = false;
             } else {
                 snake.removeFirst();
             }
@@ -223,11 +272,13 @@ public class SnakeGame {
                 g.drawLine(0, y * CELL_SIZE, GRID_SIZE * CELL_SIZE, y * CELL_SIZE);
             }
 
-            g.setColor(Color.GREEN);
-            for (Point segment : snake) {
+            // Draw snake (each segment has its own color)
+            for (Segment segment : snake) {
+                g.setColor(segment.color);
                 g.fillRect(segment.x * CELL_SIZE, segment.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             }
 
+            // Draw food
             if (food != null) {
                 g.setColor(Color.RED);
                 g.fillRect(food.x * CELL_SIZE, food.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
