@@ -8,7 +8,11 @@ prompt #4 - Add a food pellet that spawns at a random empty cell. When the snake
 
 prompt #5 once the game has reached a score of five, increase the tick speed by 10. for each 5 points afterwards, increase the tick speed by an additional 10.
 
-prompt #6 - Good Afternoon my Co-Pilot. I am designing a snake game of which i have the majority of the bare bones and even a way for difficulty to increase. The next thing i am looking to add is the ability so that when the snake eats a pellet, the next square that grows on the snake is a random color.
+prompt #6 - Add in a face that appears once you have lost the game.
+
+prompt #7 - play a loud audio noise once you have lost the game.
+
+prompt #7 - Good Afternoon my Co-Pilot. I am designing a snake game of which i have the majority of the bare bones and even a way for difficulty to increase. The next thing i am looking to add is the ability so that when the snake eats a pellet, the next square that grows on the snake is a random color.
 This would allow my game to be more visually appealing. It did give me code, but i wasnt sure where to put it so i gave it another prompt.
 
-prompt #7 - Compile this discussed information into something i can copy and paste into the file i have open in Visual Studio code named SnakeGame.Java
+prompt #8 - Compile this discussed information into something i can copy and paste into the file i have open in Visual Studio code named SnakeGame.Java
